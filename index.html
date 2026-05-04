@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>과외 트래커</title>
+<meta name="description" content="과외 강사용 학생·매출·청구 메시지·현금영수증 발급 기한 관리 PWA" />
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#1a1a1a" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="과외" />
+<meta name="mobile-web-app-capable" content="yes" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    margin: 0; padding: 16px;
+    background: #f7f7f5; color: #1a1a1a; line-height: 1.5; font-size: 13px;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 13px; margin: 0 0 10px; color: #555; font-weight: 600; }
+  .sub { font-size: 11px; color: #888; margin-bottom: 14px; }
+  .card { background: #fff; border: 1px solid #e7e5e0; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .stat { background: #fff; border: 1px solid #e7e5e0; border-radius: 10px; padding: 10px 12px; }
+  .stat .label { font-size: 11px; color: #888; }
+  .stat .v { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat.alert { background: #fff5f0; border-color: #f5cdb6; }
+  .stat.alert .v { color: #b34a2a; }
+  .stat.today { background: #fdf8eb; border-color: #ebd99c; }
+  .stat.today .v { color: #715a14; }
+  label { display: block; font-size: 11px; color: #555; margin: 6px 0 3px; }
+  input, select, textarea {
+    width: 100%; padding: 7px 9px; border: 1px solid #d6d3cd; border-radius: 6px;
+    font-size: 13px; background: #fafaf8; font-family: inherit;
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #d8c89a; border-color: #c9b377; }
+  .btn {
+    background: #1a1a1a; color: #fff; border: none; padding: 8px 12px;
+    border-radius: 6px; font-size: 12px; cursor: pointer; margin-right: 6px; margin-top: 4px;
+  }
+  .btn.secondary { background: #fff; color: #1a1a1a; border: 1px solid #d6d3cd; }
+  .btn.danger { background: #b34a2a; color: #fff; }
+  .btn.small { padding: 4px 8px; font-size: 11px; }
+  .btn:hover { opacity: 0.9; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e7e5e0; color: #666; font-weight: 600; font-size: 11px; }
+  td { padding: 7px 6px; border-bottom: 1px dashed #eee; vertical-align: top; }
+  tr:hover td { background: #fafaf8; }
+  .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; }
+  .pill.ok { background: #e7f5ec; color: #1f7a3a; }
+  .pill.no { background: #fdecec; color: #b53030; }
+  .pill.today { background: #fdf8eb; color: #715a14; }
+  .pill.month { background: #ecf2fd; color: #1f4ea3; }
+  .filter-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .filter-tabs .tab { padding: 5px 10px; border: 1px solid #d6d3cd; border-radius: 999px; cursor: pointer; font-size: 11px; background: #fff; }
+  .filter-tabs .tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #555; }
+  .msg-box {
+    background: #f5f1e6; border: 1px solid #e0d4a8; border-radius: 8px;
+    padding: 10px; margin-top: 8px; font-size: 12px; white-space: pre-wrap;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .msg-box-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .msg-box-header b { font-size: 12px; }
+  .step { padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 12px; }
+  .step:last-child { border: none; }
+  .step b { color: #b34a2a; }
+  .empty { text-align: center; color: #aaa; padding: 16px; font-size: 12px; }
+  .billing-row { padding: 10px; background: #fdf8eb; border: 1px solid #ebd99c; border-radius: 8px; margin-bottom: 8px; }
+  .billing-row .name { font-weight: 700; font-size: 13px; }
+  .billing-row .meta { font-size: 11px; color: #5a4f2a; margin-top: 2px; }
+  .month-row { padding: 8px 10px; background: #f0f5ff; border: 1px solid #b9c8e8; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .month-row .name { font-weight: 700; font-size: 13px; min-width: 80px; }
+  .month-row .meta { font-size: 11px; color: #1f4ea3; }
+  .month-row label { display: inline-block; margin: 0 4px 0 8px; font-size: 11px; }
+  .month-row input { width: 60px; padding: 4px 6px; font-size: 12px; }
+  @media (max-width: 600px) { .grid4 { grid-template-columns: 1fr 1fr; } .grid2, .grid3 { grid-template-columns: 1fr; } }
+  /* Sync bar (PWA cloud sync indicator) */
+  .sync-bar {
+    background: #1a1a1a; color: #fff; padding: 8px 12px;
+    font-size: 11px; display: flex; justify-content: space-between;
+    align-items: center; gap: 8px;
+    margin: -16px -16px 12px -16px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    flex-wrap: wrap;
+  }
+  .sync-bar.synced { background: #1f5f3a; }
+  .sync-bar.error { background: #7a3a1f; }
+  .sync-bar.local { background: #555; }
+  .sync-bar .btn { padding: 4px 9px; font-size: 10px; margin: 0; }
+  .sync-bar .btn.secondary { background: rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3); }
+  /* Login modal */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.55); display: flex; justify-content: center; align-items: center;
+    z-index: 1000; padding: 16px;
+  }
+  .modal-content {
+    background: #fff; border-radius: 12px; padding: 22px; max-width: 380px; width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+  .modal-content h2 { margin: 0 0 8px; font-size: 16px; color: #1a1a1a; }
+  .modal-content p { font-size: 12px; color: #555; margin: 0 0 12px; }
+  .modal-content .btn { margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- 클라우드 동기화 상태 바 -->
+<div class="sync-bar local" id="sync-bar">
+  <span id="sync-status">📦 로컬 모드 (이 기기에만 저장)</span>
+  <span id="sync-actions">
+    <button class="btn secondary" onclick="openLoginModal()">클라우드 로그인</button>
+  </span>
+</div>
+
+<!-- 로그인 모달 -->
+<div id="login-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h2>☁️ 클라우드 동기화 로그인</h2>
+    <p>이메일로 매직 링크가 와요. 비밀번호 필요 없음.<br>여러 기기(폰·노트북) 데이터 자동 동기화.</p>
+    <label>이메일</label>
+    <input type="email" id="login-email" placeholder="namjess@gmail.com" />
+    <button class="btn" onclick="doSignIn()" style="width:100%;">매직 링크 보내기</button>
+    <button class="btn secondary" onclick="closeLoginModal()" style="width:100%;">나중에 (로컬로 사용)</button>
+    <p style="margin-top:12px; padding-top:10px; border-top:1px solid #eee;">
+      <b>로그인 안 해도 OK:</b> 이 기기에서만 사용. 데이터는 브라우저에 저장.<br>
+      <b>로그인하면:</b> 클라우드(Supabase)에 안전하게 자동 백업, 모든 기기에서 같은 데이터.
+    </p>
+  </div>
+</div>
+
+<h1>과외 트래커</h1>
+<div class="sub">학생·매출·정규수업·청구 메시지·현금영수증 일괄 관리. 데이터는 이 브라우저에 저장돼.</div>
+
+<!-- Tutor settings -->
+<div class="card">
+  <h2>강사 공통 정보 (한 번만 등록)</h2>
+  <details>
+    <summary>+ 펼쳐서 입력/수정</summary>
+    <div class="grid2" style="margin-top:8px;">
+      <div>
+        <label>은행명</label>
+        <input type="text" id="cfg-bank" placeholder="예: 국민은행" />
+        <label>예금주</label>
+        <input type="text" id="cfg-holder" placeholder="예: 남지원(리마)" />
+        <label>계좌번호</label>
+        <input type="text" id="cfg-account" placeholder="예: 822437-04-008329" />
+      </div>
+      <div>
+        <label>일정 변경 카카오 채널 링크</label>
+        <input type="text" id="cfg-url" placeholder="http://pf.kakao.com/_VtxgxlX" />
+        <label>기본 프로그램명 (선택, 학생별 덮어쓰기 가능)</label>
+        <input type="text" id="cfg-program" placeholder="예: 지속성장리워드 프로그램" />
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- Summary cards -->
+<div class="grid4">
+  <div class="stat today"><div class="label">오늘 청구 대상</div><div class="v" id="stat-today">0명</div></div>
+  <div class="stat"><div class="label">이번 달 매출</div><div class="v" id="stat-month">0</div></div>
+  <div class="stat"><div class="label">부가세 적립 (10%)</div><div class="v" id="stat-vat">0</div></div>
+  <div class="stat alert"><div class="label">미발급 현금영수증</div><div class="v" id="stat-unissued">0건</div></div>
+</div>
+
+<!-- 5-day receipt deadline tracker -->
+<div class="card" id="receipt-deadline-card" style="background:#ffeae1; border-color:#f5a07a; display:none;">
+  <h2 style="color:#a13a1a;">📌 5일 내 현금영수증 발급 대상 (의무발행업종)</h2>
+  <div style="font-size:11px; color:#5a3a2a; margin-bottom:8px;">
+    의무발행업종 — 거래일로부터 <b>5일 이내</b> 발급 의무. 비용안내 메시지 복사한 날을 거래일로 자동 기록.
+    <br>학생이 입금하면 [✓ 발급 완료]로 처리, 아직 미입금이면 그대로 두면 알림이 계속 떠.
+  </div>
+  <div id="receipt-deadline-list"></div>
+  <div style="margin-top:8px;">
+    <button class="btn small" onclick="copyHomeTaxAllPending()">📦 전체 발급 대기건 텍스트 복사</button>
+  </div>
+</div>
+
+<!-- Today's billing -->
+<div class="card" style="background:#fdf8eb; border-color:#ebd99c;">
+  <h2 style="color:#715a14;">오늘 청구 대상 학생</h2>
+  <div style="font-size:11px; color:#5a4f2a; margin-bottom:6px;" id="today-date"></div>
+  <div id="today-billing"></div>
+</div>
+
+<!-- Monthly billing message generator -->
+<div class="card" style="background:#f0f5ff; border-color:#b9c8e8;">
+  <h2 style="color:#1f4ea3;">월간 청구 메시지 생성 (정기 학생용)</h2>
+  <div style="font-size:11px; color:#1f4ea3; margin-bottom:6px;">
+    n차 표기 2종 자동 계산 — ① <b>yyyy년 n차</b>: 등록 시작일 기준 누적 개월 (예: 시작 3월 → 4월=2차, 5월=3차) · ② <b>지속성장프로그램 n차</b>: 프로그램 시작일 기준 누적 개월
+  </div>
+  <div class="grid3">
+    <div>
+      <label>대상 연도·월</label>
+      <input type="month" id="bill-yearmonth" />
+    </div>
+    <div>
+      <label>대상 학생</label>
+      <select id="bill-scope">
+        <optgroup label="그룹">
+          <option value="month">결제주기 "월" 학생 전부</option>
+          <option value="today">오늘 청구 대상만</option>
+          <option value="all">전체 활성 학생</option>
+        </optgroup>
+        <optgroup label="개별 학생 (지정일 외 발송용)" id="bill-scope-students">
+          <!-- 활성 학생 동적 채움 -->
+        </optgroup>
+      </select>
+    </div>
+    <div style="display:flex; align-items:flex-end;">
+      <button class="btn" onclick="prepareMonthList()">목록 준비</button>
+    </div>
+  </div>
+  <div id="month-bill-list" style="margin-top:10px;"></div>
+  <div id="month-bill-output" style="margin-top:10px;"></div>
+</div>
+
+<!-- Monthly class schedule (Zoom prep) -->
+<div class="card" style="background:#f3f0fb; border-color:#cdc1ed;">
+  <h2 style="color:#5a3aa3;">이번 달 수업 일정 (Zoom 미팅 준비용)</h2>
+  <div style="font-size:11px; color:#5a3aa3; margin-bottom:6px;">
+    학생별 정규 수업일 자동 계산. 라벨 형식: "학생명 M/D HH:MM".
+    <br>※ Zoom 자동 생성은 현재 환경에서 직접 지원 X. 라벨 복사해서 Zoom 또는 Google 캘린더에 붙여넣기.
+  </div>
+  <div class="grid3">
+    <div>
+      <label>대상 연도·월</label>
+      <input type="month" id="sched-yearmonth" />
+    </div>
+    <div style="display:flex; align-items:flex-end;">
+      <button class="btn" onclick="renderSchedule()">일정 생성</button>
+    </div>
+    <div style="display:flex; align-items:flex-end;">
+      <button class="btn secondary" onclick="copyAllSchedule()">전체 라벨 복사</button>
+    </div>
+  </div>
+  <div id="schedule-output" style="margin-top:10px;"></div>
+</div>
+
+<!-- Quick add transaction -->
+<div class="card">
+  <h2>새 과외비 입력</h2>
+  <div class="grid2">
+    <div>
+      <label>학생</label>
+      <select id="tx-student"><option value="">— 학생 선택 —</option></select>
+      <label>금액 (원)</label>
+      <input type="number" id="tx-amount" placeholder="예: 150000" />
+    </div>
+    <div>
+      <label>날짜</label>
+      <input type="date" id="tx-date" />
+      <label>현금영수증</label>
+      <select id="tx-receipt">
+        <option value="0">미발급 (월말 일괄)</option>
+        <option value="1">이미 발급함</option>
+        <option value="card">카드 결제 (자동 발급)</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-top:8px;">
+    <button class="btn" onclick="addTx()">기록 추가</button>
+  </div>
+</div>
+
+<!-- Students -->
+<div class="card">
+  <h2>학생 명단</h2>
+  <details id="student-form">
+    <summary>+ 학생 추가/관리</summary>
+    <div class="grid2" style="margin-top:8px;">
+      <div>
+        <h2 style="margin-top:6px;">기본 정보</h2>
+        <label>학생 이름 (또는 닉네임)</label>
+        <input type="text" id="st-name" />
+        <label>전화번호 (현금영수증 발급용)</label>
+        <input type="text" id="st-phone" placeholder="010-1234-5678" />
+        <label>등록 시작일 (yyyy년 n차 자동 계산)</label>
+        <input type="date" id="st-start" />
+        <label>메모 (학년·과목 등, 선택)</label>
+        <input type="text" id="st-memo" />
+      </div>
+      <div>
+        <h2 style="margin-top:6px;">결제 정보</h2>
+        <label>결제 주기</label>
+        <select id="st-cycle" onchange="onCycleChange()">
+          <option value="월">월 단위 (정기 회원, 추천)</option>
+          <option value="회">회당 (수업마다)</option>
+          <option value="주">주 단위 (요일 지정)</option>
+        </select>
+        <label id="st-day-label">청구일</label>
+        <input type="number" id="st-day-month" min="1" max="31" placeholder="예: 25 (매월 25일 청구)" />
+        <select id="st-day-week" style="display:none;">
+          <option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option>
+          <option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option>
+          <option value="0">일요일</option>
+        </select>
+        <input type="text" id="st-day-na" value="회당 즉시 청구" disabled style="display:none;" />
+        <label>월 횟수 (정규 수업, 예: 4)</label>
+        <input type="number" id="st-count" placeholder="4" />
+        <label>월 이용 금액 (원, 예: 150000)</label>
+        <input type="number" id="st-amount" placeholder="150000" />
+      </div>
+    </div>
+
+    <h2 style="margin-top:10px;">정규 수업 정보 (주 1~3회)</h2>
+    <div style="margin-bottom:8px;">
+      <label>서비스명</label>
+      <input type="text" id="st-service" placeholder="예: 토익 / 영어회화" />
+    </div>
+    <div class="grid3">
+      <div style="background:#fafaf8; border:1px solid #e7e5e0; border-radius:6px; padding:8px;">
+        <div style="font-size:11px; font-weight:700; color:#1a1a1a; margin-bottom:4px;">1회차 (필수)</div>
+        <label>요일</label>
+        <select id="st-classday-1">
+          <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option>
+          <option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option>
+          <option value="6">토요일</option>
+        </select>
+        <label>시간</label>
+        <input type="text" id="st-classtime-1" placeholder="예: 오후 17:00~18:00" />
+      </div>
+      <div style="background:#fafaf8; border:1px solid #e7e5e0; border-radius:6px; padding:8px;">
+        <div style="font-size:11px; font-weight:700; color:#666; margin-bottom:4px;">2회차 (선택)</div>
+        <label>요일</label>
+        <select id="st-classday-2">
+          <option value="">— 없음 —</option>
+          <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option>
+          <option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option>
+          <option value="6">토요일</option>
+        </select>
+        <label>시간</label>
+        <input type="text" id="st-classtime-2" placeholder="예: 오후 19:00~20:00" />
+      </div>
+      <div style="background:#fafaf8; border:1px solid #e7e5e0; border-radius:6px; padding:8px;">
+        <div style="font-size:11px; font-weight:700; color:#666; margin-bottom:4px;">3회차 (선택)</div>
+        <label>요일</label>
+        <select id="st-classday-3">
+          <option value="">— 없음 —</option>
+          <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option>
+          <option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option>
+          <option value="6">토요일</option>
+        </select>
+        <label>시간</label>
+        <input type="text" id="st-classtime-3" placeholder="예: 오전 10:00~11:00" />
+      </div>
+    </div>
+    <label>커리큘럼 구성</label>
+    <textarea id="st-curri" placeholder="예: RC 파트 5-7 + 필요시 LC 포함"></textarea>
+    <label>추가 일정·메모 (메시지에 포함, 선택)</label>
+    <textarea id="st-extra" placeholder="예: 주말 제외, 매일 오전 7시 전화 퀴즈 진행 (토익 빈출 단어)"></textarea>
+
+    <h2 style="margin-top:10px;">프로그램 (선택)</h2>
+    <div class="grid2">
+      <div>
+        <label>프로그램명 (비우면 강사 공통 정보의 기본값 사용)</label>
+        <input type="text" id="st-prog" placeholder="예: 지속성장리워드 프로그램" />
+      </div>
+      <div>
+        <label>프로그램 시작일 (지속성장프로그램 n차 자동 계산)</label>
+        <input type="date" id="st-progstart" />
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="btn" onclick="addStudent()">학생 추가</button>
+      <button class="btn secondary" onclick="resetForm()">폼 초기화</button>
+    </div>
+  </details>
+  <div id="student-list" style="margin-top:10px;"></div>
+</div>
+
+<!-- Transactions -->
+<div class="card">
+  <h2>거래 내역</h2>
+  <div class="filter-tabs">
+    <div class="tab active" data-filter="month" onclick="setFilter('month', this)">이번 달</div>
+    <div class="tab" data-filter="lastmonth" onclick="setFilter('lastmonth', this)">지난 달</div>
+    <div class="tab" data-filter="quarter" onclick="setFilter('quarter', this)">이번 분기</div>
+    <div class="tab" data-filter="year" onclick="setFilter('year', this)">올해 전체</div>
+    <div class="tab" data-filter="all" onclick="setFilter('all', this)">전체</div>
+    <div style="flex:1"></div>
+    <button class="btn small secondary" onclick="exportCSV()">CSV 내보내기</button>
+  </div>
+  <div id="tx-table"></div>
+</div>
+
+<!-- Monthly bulk receipt list -->
+<div class="card" style="background:#fff5ec; border-color:#f5cdb6;">
+  <h2 style="color:#b34a2a;">월말 일괄 발급용 목록 — 이번 달 미발급</h2>
+  <div style="font-size:12px; color:#5a3a2a; margin-bottom:6px;">
+    매달 마지막 날 홈택스에서 한 번에 등록. 학생별 합계로 묶어서 보여줌.
+    <br>※ 의무발행업종 원칙: 거래일로부터 5일 이내 발급. 월말 일괄은 운영 편의지만 5일 초과분은 가산세 위험 인지할 것.
+  </div>
+  <div id="bulk-list"></div>
+  <div style="margin-top:8px;">
+    <button class="btn" onclick="copyBulkText()">홈택스 입력용 텍스트 복사</button>
+    <button class="btn secondary small" onclick="markAllIssued()">표시된 항목 모두 "발급함"으로</button>
+  </div>
+</div>
+
+<!-- Backup -->
+<div class="card" style="background:#fdf8eb; border-color:#ebd99c;">
+  <h2 style="color:#715a14;">데이터 백업·이동</h2>
+  <div style="font-size:12px; color:#5a4f2a; margin-bottom:6px;">이 브라우저에만 저장돼. 기기 변경 시 백업 필수.</div>
+  <button class="btn secondary small" onclick="exportData()">JSON 백업 다운로드</button>
+  <button class="btn secondary small" onclick="document.getElementById('import-file').click()">JSON 복원</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)" />
+  <button class="btn danger small" onclick="if(confirm('정말 모든 데이터를 삭제할까요?')) { localStorage.clear(); location.reload(); }">전체 초기화</button>
+</div>
+
+<!-- Supabase JS client (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
+<script>
+  // ---------- Supabase 설정 (사용자 입력 필요) ----------
+  // Supabase 대시보드 > Settings > API 에서 가져온 값을 입력하세요.
+  // 공란일 경우 로컬 전용 모드로 자동 작동합니다.
+  const SUPABASE_URL = ""; // ← 본인 프로젝트 URL (예: https://xxxx.supabase.co)
+  const SUPABASE_ANON_KEY = ""; // ← 본인 anon public key
+
+  let sb = null;             // Supabase client
+  let currentUser = null;    // 로그인 사용자
+  let cloudEnabled = false;  // 클라우드 동기화 활성 여부
+  let lastCloudSyncAt = null;
+
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    cloudEnabled = true;
+  }
+
+  // ---------- Storage ----------
+  const KEY_S = "tutor.students";
+  const KEY_T = "tutor.transactions";
+  const KEY_C = "tutor.config";
+  const KEY_BC = "tutor.billingCopies"; // 비용안내 메시지 복사 기록 (5일 발급 카운트다운용)
+
+  let students = JSON.parse(localStorage.getItem(KEY_S) || "[]");
+  let txs = JSON.parse(localStorage.getItem(KEY_T) || "[]");
+  let config = JSON.parse(localStorage.getItem(KEY_C) || "{}");
+  let billingCopies = JSON.parse(localStorage.getItem(KEY_BC) || "[]");
+  let filter = "month";
+  let editingId = null;
+
+  // Default config values from user's example
+  config = Object.assign({
+    bank: "국민은행",
+    holder: "남지원(리마)",
+    account: "822437-04-008329",
+    url: "http://pf.kakao.com/_VtxgxlX",
+    program: "지속성장리워드 프로그램"
+  }, config);
+
+  // Load config to UI
+  document.getElementById("cfg-bank").value = config.bank;
+  document.getElementById("cfg-holder").value = config.holder;
+  document.getElementById("cfg-account").value = config.account;
+  document.getElementById("cfg-url").value = config.url;
+  document.getElementById("cfg-program").value = config.program;
+
+  ["cfg-bank","cfg-holder","cfg-account","cfg-url","cfg-program"].forEach(id => {
+    document.getElementById(id).addEventListener("input", e => {
+      config[id.replace("cfg-","")] = e.target.value;
+      localStorage.setItem(KEY_C, JSON.stringify(config));
+    });
+  });
+
+  // Default today/yearmonth
+  document.getElementById("tx-date").value = new Date().toISOString().slice(0, 10);
+  const _now = new Date();
+  document.getElementById("bill-yearmonth").value = _now.getFullYear() + "-" + String(_now.getMonth()+1).padStart(2,"0");
+  document.getElementById("sched-yearmonth").value = _now.getFullYear() + "-" + String(_now.getMonth()+1).padStart(2,"0");
+
+  function save() {
+    localStorage.setItem(KEY_S, JSON.stringify(students));
+    localStorage.setItem(KEY_T, JSON.stringify(txs));
+    schedulePush();
+  }
+  function saveBC() {
+    localStorage.setItem(KEY_BC, JSON.stringify(billingCopies));
+    schedulePush();
+  }
+
+  // ---------- 클라우드 동기화 (Supabase) ----------
+  let pushTimer = null;
+  function schedulePush() {
+    if (!cloudEnabled || !currentUser) return;
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => pushToCloud(), 700);
+  }
+  async function pushToCloud() {
+    if (!cloudEnabled || !currentUser) return;
+    try {
+      updateSyncBar("syncing", "☁️ 동기화 중...");
+      const payload = { students, txs, config, billingCopies, savedAt: new Date().toISOString() };
+      const { error } = await sb.from("tutor_data").upsert({
+        user_id: currentUser.id,
+        data: payload,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      lastCloudSyncAt = new Date();
+      updateSyncBar("synced", `☁️ ${currentUser.email} · 동기화 ${formatRelTime(lastCloudSyncAt)}`);
+    } catch (err) {
+      console.error("Cloud push failed:", err);
+      updateSyncBar("error", "⚠️ 동기화 실패 (로컬은 저장됨) — 다시 시도");
+    }
+  }
+  async function pullFromCloud() {
+    if (!cloudEnabled || !currentUser) return;
+    try {
+      updateSyncBar("syncing", "☁️ 클라우드에서 불러오는 중...");
+      const { data, error } = await sb
+        .from("tutor_data")
+        .select("data, updated_at")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (data && data.data) {
+        students = data.data.students || [];
+        txs = data.data.txs || [];
+        if (data.data.config) {
+          config = Object.assign(config, data.data.config);
+          localStorage.setItem(KEY_C, JSON.stringify(config));
+        }
+        billingCopies = data.data.billingCopies || [];
+        // 로컬 캐시도 갱신 (push 트리거 없이)
+        localStorage.setItem(KEY_S, JSON.stringify(students));
+        localStorage.setItem(KEY_T, JSON.stringify(txs));
+        localStorage.setItem(KEY_BC, JSON.stringify(billingCopies));
+        lastCloudSyncAt = new Date(data.updated_at);
+        render();
+        updateSyncBar("synced", `☁️ ${currentUser.email} · 동기화 ${formatRelTime(lastCloudSyncAt)}`);
+      } else {
+        // 클라우드에 데이터 없음 — 로컬 데이터를 첫 푸시
+        updateSyncBar("syncing", "☁️ 첫 동기화 (로컬 → 클라우드)");
+        await pushToCloud();
+      }
+    } catch (err) {
+      console.error("Cloud pull failed:", err);
+      updateSyncBar("error", "⚠️ 클라우드 불러오기 실패 (로컬 데이터 사용 중)");
+    }
+  }
+  function formatRelTime(d) {
+    const diff = Math.round((Date.now() - d.getTime()) / 1000);
+    if (diff < 60) return "방금";
+    if (diff < 3600) return Math.floor(diff/60) + "분 전";
+    if (diff < 86400) return Math.floor(diff/3600) + "시간 전";
+    return Math.floor(diff/86400) + "일 전";
+  }
+  function updateSyncBar(state, text) {
+    const bar = document.getElementById("sync-bar");
+    const status = document.getElementById("sync-status");
+    const actions = document.getElementById("sync-actions");
+    if (!bar || !status) return;
+    bar.classList.remove("synced","error","local");
+    if (state === "synced") bar.classList.add("synced");
+    else if (state === "error") bar.classList.add("error");
+    else if (state === "local") bar.classList.add("local");
+    status.textContent = text;
+    if (currentUser) {
+      actions.innerHTML = '<button class="btn secondary" onclick="pullFromCloud()">↻ 새로고침</button> <button class="btn secondary" onclick="doSignOut()">로그아웃</button>';
+    } else {
+      actions.innerHTML = '<button class="btn secondary" onclick="openLoginModal()">클라우드 로그인</button>';
+    }
+  }
+  // 로그인 UI
+  function openLoginModal() {
+    if (!cloudEnabled) {
+      alert("클라우드 동기화 미설정 상태입니다.\nindex.html 상단의 SUPABASE_URL / SUPABASE_ANON_KEY를 입력한 후 다시 열어주세요.\n\n설정 가이드는 README.md 참고.");
+      return;
+    }
+    document.getElementById("login-modal").style.display = "flex";
+    setTimeout(() => document.getElementById("login-email").focus(), 50);
+  }
+  function closeLoginModal() {
+    document.getElementById("login-modal").style.display = "none";
+  }
+  async function doSignIn() {
+    const email = document.getElementById("login-email").value.trim();
+    if (!email) return alert("이메일을 입력해주세요");
+    if (!cloudEnabled) return alert("클라우드 미설정");
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error) return alert("로그인 실패: " + error.message);
+    alert(email + " 로 로그인 링크를 보냈어요.\n메일함에서 링크 클릭 → 자동으로 이 앱에 로그인됩니다.");
+    closeLoginModal();
+  }
+  async function doSignOut() {
+    if (!cloudEnabled) return;
+    if (!confirm("로그아웃할까요? 이 기기 데이터는 유지되지만 클라우드 동기화는 중단됩니다.")) return;
+    await sb.auth.signOut();
+    currentUser = null;
+    updateSyncBar("local", "📦 로컬 모드 (이 기기에만 저장)");
+  }
+  async function initAuth() {
+    if (!cloudEnabled) {
+      updateSyncBar("local", "📦 로컬 모드 (Supabase 미설정)");
+      return;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      updateSyncBar("syncing", "☁️ 로그인됨 — 동기화 중...");
+      await pullFromCloud();
+    } else {
+      updateSyncBar("local", "📦 로컬 모드 (이 기기에만 저장) — 로그인하면 클라우드 동기화");
+    }
+    sb.auth.onAuthStateChange((event, session) => {
+      if (session && session.user) {
+        currentUser = session.user;
+        updateSyncBar("syncing", "☁️ 로그인 성공 — 동기화 중...");
+        pullFromCloud();
+      } else {
+        currentUser = null;
+        updateSyncBar("local", "📦 로컬 모드 (로그아웃됨)");
+      }
+    });
+  }
+  // ---------- 5일 발급 추적 ----------
+  function recordBillingCopy(studentId, amount) {
+    if (!studentId) return;
+    const today = new Date().toISOString().slice(0,10);
+    // 같은 학생, 같은 날, 미발급 건이 이미 있으면 중복 기록 안 함
+    const dup = billingCopies.find(b => b.studentId === studentId && b.copiedAt === today && !b.issued);
+    if (dup) return;
+    billingCopies.push({
+      id: uid(),
+      studentId,
+      amount: amount || 0,
+      copiedAt: today,
+      issued: false
+    });
+    saveBC();
+    renderReceiptDeadline();
+  }
+  function markCopyIssued(id) {
+    const b = billingCopies.find(x => x.id === id);
+    if (!b) return;
+    if (!confirm("홈택스에서 실제로 발급 완료하셨나요?")) return;
+    b.issued = true;
+    b.issuedAt = new Date().toISOString().slice(0,10);
+    saveBC();
+    renderReceiptDeadline();
+  }
+  function delCopy(id) {
+    if (!confirm("이 발급 대상을 목록에서 제거할까요? (실제 발급은 별도 처리)")) return;
+    billingCopies = billingCopies.filter(b => b.id !== id);
+    saveBC();
+    renderReceiptDeadline();
+  }
+  function copyHomeTaxOne(id) {
+    const b = billingCopies.find(x => x.id === id); if (!b) return;
+    const s = students.find(x => x.id === b.studentId) || {name:"(삭제됨)", phone:""};
+    const copied = new Date(b.copiedAt);
+    const deadline = new Date(copied.getFullYear(), copied.getMonth(), copied.getDate() + 5);
+    const deadlineStr = `${deadline.getFullYear()}-${String(deadline.getMonth()+1).padStart(2,"0")}-${String(deadline.getDate()).padStart(2,"0")}`;
+    const text = `[현금영수증 발급용]
+학생: ${s.name}
+전화번호: ${s.phone || '미입력'}
+금액: ${fmt(b.amount)}원
+거래일: ${b.copiedAt}
+발급기한: ${deadlineStr} (거래일+5일)`;
+    navigator.clipboard.writeText(text).then(() => alert("복사 완료. 홈택스에 입력하세요.")).catch(() => prompt("직접 복사:", text));
+  }
+  function copyHomeTaxAllPending() {
+    const pending = billingCopies.filter(b => !b.issued);
+    if (pending.length === 0) return alert("발급 대기 중인 건이 없어요");
+    let text = `[현금영수증 일괄 발급용 — ${new Date().toISOString().slice(0,10)}]\n\n`;
+    pending.forEach(b => {
+      const s = students.find(x => x.id === b.studentId) || {name:"(삭제됨)", phone:""};
+      const copied = new Date(b.copiedAt);
+      const deadline = new Date(copied.getFullYear(), copied.getMonth(), copied.getDate() + 5);
+      const deadlineStr = `${deadline.getFullYear()}-${String(deadline.getMonth()+1).padStart(2,"0")}-${String(deadline.getDate()).padStart(2,"0")}`;
+      text += `■ ${s.name}\n  전화번호: ${s.phone || '미입력'}\n  금액: ${fmt(b.amount)}원\n  거래일: ${b.copiedAt}\n  발급기한: ${deadlineStr}\n\n`;
+    });
+    navigator.clipboard.writeText(text).then(() => alert(pending.length + "건 복사 완료")).catch(() => prompt("직접 복사:", text));
+  }
+  function fmt(n) { return Number(n || 0).toLocaleString("ko-KR"); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function dayName(d) { return ["일","월","화","수","목","금","토"][d]; }
+  // 정규 수업 정보 — 신규 schema(classes 배열) + 구버전(classDay/classTime) 호환
+  function getClasses(s) {
+    if (s.classes && Array.isArray(s.classes) && s.classes.length > 0) return s.classes;
+    if (s.classDay !== undefined && s.classDay !== null && s.classDay !== "") {
+      return [{ day: +s.classDay, time: s.classTime || "" }];
+    }
+    return [];
+  }
+
+  // ---------- Cycle UI ----------
+  function onCycleChange() {
+    const c = document.getElementById("st-cycle").value;
+    document.getElementById("st-day-week").style.display = c === "주" ? "block" : "none";
+    document.getElementById("st-day-month").style.display = c === "월" ? "block" : "none";
+    document.getElementById("st-day-na").style.display = c === "회" ? "block" : "none";
+    document.getElementById("st-day-label").textContent = c === "주" ? "결제 요일" : c === "월" ? "결제일 (몇 일?)" : "결제일";
+  }
+  onCycleChange();
+
+  // ---------- Students ----------
+  function addStudent() {
+    const name = document.getElementById("st-name").value.trim();
+    if (!name) return alert("이름을 입력해주세요");
+    const cycle = document.getElementById("st-cycle").value;
+    let billingDay = null;
+    if (cycle === "주") billingDay = +document.getElementById("st-day-week").value;
+    else if (cycle === "월") billingDay = +document.getElementById("st-day-month").value || null;
+
+    // 정규 수업 정보 (최대 3개)
+    const classes = [];
+    for (let i = 1; i <= 3; i++) {
+      const dayVal = document.getElementById(`st-classday-${i}`).value;
+      const timeVal = document.getElementById(`st-classtime-${i}`).value.trim();
+      if (dayVal !== "" && dayVal !== null && dayVal !== undefined) {
+        classes.push({ day: +dayVal, time: timeVal });
+      }
+    }
+
+    const data = {
+      name,
+      phone: document.getElementById("st-phone").value.trim(),
+      memo: document.getElementById("st-memo").value.trim(),
+      startDate: document.getElementById("st-start").value || null,
+      cycle, billingDay,
+      monthlyCount: +document.getElementById("st-count").value || null,
+      amount: +document.getElementById("st-amount").value || null,
+      service: document.getElementById("st-service").value.trim(),
+      classes,
+      // 구버전 호환: 첫 수업을 classDay/classTime에도 동기화
+      classDay: classes.length > 0 ? classes[0].day : null,
+      classTime: classes.length > 0 ? classes[0].time : "",
+      curriculum: document.getElementById("st-curri").value.trim(),
+      extraNote: document.getElementById("st-extra").value.trim(),
+      programName: document.getElementById("st-prog").value.trim(),
+      programStartDate: document.getElementById("st-progstart").value || null,
+      carryover: 0,
+      active: true
+    };
+
+    if (editingId) {
+      const idx = students.findIndex(s => s.id === editingId);
+      if (idx >= 0) students[idx] = Object.assign(students[idx], data);
+      editingId = null;
+    } else {
+      data.id = uid();
+      students.push(data);
+    }
+    save(); render();
+    resetForm();
+  }
+  function resetForm() {
+    ["st-name","st-phone","st-memo","st-start","st-count","st-amount","st-service","st-classtime-1","st-classtime-2","st-classtime-3","st-curri","st-extra","st-prog","st-progstart","st-day-month"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("st-classday-1").value = "0";
+    document.getElementById("st-classday-2").value = "";
+    document.getElementById("st-classday-3").value = "";
+    editingId = null;
+    document.querySelector('#student-form summary').textContent = "+ 학생 추가/관리";
+  }
+  function editStudent(id) {
+    const s = students.find(x => x.id === id); if (!s) return;
+    editingId = id;
+    document.getElementById("st-name").value = s.name || "";
+    document.getElementById("st-phone").value = s.phone || "";
+    document.getElementById("st-memo").value = s.memo || "";
+    document.getElementById("st-start").value = s.startDate || "";
+    document.getElementById("st-cycle").value = s.cycle || "월";
+    onCycleChange();
+    if (s.cycle === "주") document.getElementById("st-day-week").value = s.billingDay ?? 0;
+    else if (s.cycle === "월") document.getElementById("st-day-month").value = s.billingDay ?? "";
+    document.getElementById("st-count").value = s.monthlyCount || "";
+    document.getElementById("st-amount").value = s.amount || "";
+    document.getElementById("st-service").value = s.service || "";
+    // 정규 수업 (1~3개) 채우기
+    const cls = getClasses(s);
+    for (let i = 1; i <= 3; i++) {
+      const c = cls[i-1];
+      if (c) {
+        document.getElementById(`st-classday-${i}`).value = c.day;
+        document.getElementById(`st-classtime-${i}`).value = c.time || "";
+      } else {
+        document.getElementById(`st-classday-${i}`).value = i === 1 ? "0" : "";
+        document.getElementById(`st-classtime-${i}`).value = "";
+      }
+    }
+    document.getElementById("st-curri").value = s.curriculum || "";
+    document.getElementById("st-extra").value = s.extraNote || "";
+    document.getElementById("st-prog").value = s.programName || "";
+    document.getElementById("st-progstart").value = s.programStartDate || "";
+    document.getElementById("student-form").open = true;
+    document.querySelector('#student-form summary').textContent = "✎ " + s.name + " 수정 중";
+    window.scrollTo({ top: document.getElementById("student-form").offsetTop - 20, behavior: "smooth" });
+  }
+  function toggleStudent(id) { const s = students.find(s => s.id === id); if (s) { s.active = !s.active; save(); render(); } }
+  function delStudent(id) {
+    if (!confirm("이 학생을 삭제할까요? (거래 기록은 유지)")) return;
+    students = students.filter(s => s.id !== id);
+    save(); render();
+  }
+
+  // ---------- Transactions ----------
+  function addTx() {
+    const studentId = document.getElementById("tx-student").value;
+    const amount = +document.getElementById("tx-amount").value || 0;
+    const date = document.getElementById("tx-date").value;
+    const receipt = document.getElementById("tx-receipt").value;
+    if (!studentId || !amount || !date) return alert("학생·금액·날짜를 모두 입력해주세요");
+    txs.push({ id: uid(), studentId, amount, date, receipt });
+    save(); render();
+    document.getElementById("tx-amount").value = "";
+  }
+  function markIssued(id) { const tx = txs.find(t => t.id === id); if (tx) { tx.receipt = "1"; save(); render(); } }
+  function delTx(id) {
+    if (!confirm("이 기록을 삭제할까요?")) return;
+    txs = txs.filter(t => t.id !== id);
+    save(); render();
+  }
+
+  // ---------- Filter ----------
+  function setFilter(f, el) {
+    filter = f;
+    document.querySelectorAll(".filter-tabs .tab").forEach(t => t.classList.remove("active"));
+    el.classList.add("active");
+    render();
+  }
+  function inFilter(dateStr) {
+    const d = new Date(dateStr); const now = new Date();
+    if (filter === "all") return true;
+    if (filter === "year") return d.getFullYear() === now.getFullYear();
+    if (filter === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    if (filter === "lastmonth") {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
+    }
+    if (filter === "quarter") {
+      const q = Math.floor(now.getMonth() / 3);
+      return d.getFullYear() === now.getFullYear() && Math.floor(d.getMonth() / 3) === q;
+    }
+    return true;
+  }
+
+  // ---------- Today's billing ----------
+  function todaysBillingStudents() {
+    const now = new Date(); const dow = now.getDay(); const dom = now.getDate();
+    return students.filter(s => {
+      if (!s.active) return false;
+      if (s.cycle === "주") return s.billingDay === dow;
+      if (s.cycle === "월") return s.billingDay === dom;
+      return false;
+    });
+  }
+  function cycleLabel(s) {
+    if (s.cycle === "회") return "회당 즉시";
+    if (s.cycle === "주") return "매주 " + dayName(s.billingDay) + "요일";
+    if (s.cycle === "월") return "매월 " + s.billingDay + "일";
+    return "-";
+  }
+
+  // ---------- Class dates in month ----------
+  function classDatesInMonth(year, monthIdx, classDay) {
+    const dates = [];
+    const last = new Date(year, monthIdx + 1, 0).getDate();
+    for (let d = 1; d <= last; d++) {
+      if (new Date(year, monthIdx, d).getDay() === classDay) dates.push(d);
+    }
+    return dates;
+  }
+  function monthsBetween(start, year, monthIdx) {
+    const s = new Date(start);
+    return (year - s.getFullYear()) * 12 + (monthIdx - s.getMonth()) + 1;
+  }
+
+  // ---------- Monthly billing message ----------
+  // n차 표기 2종:
+  //  1) yyyy년 n차       → n = 등록 시작일(startDate)부터 누적 개월 (시작 월 = 1차)
+  //  2) 지속성장프로그램 n차 → n = 프로그램 시작일(programStartDate)부터 누적 개월
+  function buildMonthlyMessage(s, year, monthIdx) {
+    let yearN = 1;
+    if (s.startDate) yearN = Math.max(1, monthsBetween(s.startDate, year, monthIdx));
+
+    const programNm = s.programName || config.program || "";
+    let programLabel = "";
+    if (programNm) {
+      if (s.programStartDate) {
+        const p = Math.max(1, monthsBetween(s.programStartDate, year, monthIdx));
+        programLabel = ` (${programNm} ${p}차)`;
+      } else {
+        programLabel = ` (${programNm})`;
+      }
+    }
+
+    const headerLabel = `${year}년 ${yearN}차${programLabel}`;
+
+    // 정규 수업 (1~3회) 일정 라인 생성
+    const cls = getClasses(s);
+    const scheduleLines = cls.map(c => {
+      const dates = classDatesInMonth(year, monthIdx, c.day);
+      const dn = dayName(c.day) + "요일";
+      const datesStr = dates.length ? ` (${monthIdx+1}월 ${dates.join(",")}일)` : "";
+      return `매주 ${dn} ${c.time || ""}${datesStr}`;
+    });
+    const scheduleBlock = scheduleLines.length === 0
+      ? ""
+      : (scheduleLines.length === 1
+          ? `정규 수업: ${scheduleLines[0]}`
+          : `정규 수업 (주 ${scheduleLines.length}회):\n${scheduleLines.map(l => "- " + l).join("\n")}`);
+
+    return `${headerLabel} 수강 안내드립니다😊
+[수강료 안내]
+수강료는 월 단위 선납 부탁드립니다.
+월 ${s.monthlyCount || "?"}시: ${fmt(s.amount)}원
+이월강의:
+
+[이용 서비스 및 금액 안내 – ${headerLabel}]
+1. 서비스명: ${s.service || ""}
+2. 이용 금액: ${fmt(s.amount)}원
+3. 이용 일정:
+${scheduleBlock}
+${s.extraNote ? s.extraNote : ""}
+
+[커리큘럼 구성]
+${s.curriculum || ""}
+
+[수업 시간 변경 안내]
+학습자의 소중한 수업 시간을 위해 수업 준비 및 일정 조율이 사전에 이루어지고 있습니다.
+부득이하게 수업 일정 변경이 필요하신 경우, 아래 링크를 통해 반드시 수업 시작 24시간 전까지 변경 신청을 부탁드립니다.
+📌 일정 변경 순서: > 링크 접속 > 하단 '수업시간변경' 메뉴 선택 > 캘린더에서 시간 선택 > 이름란에 학습자명 기재 필수
+👉 ${config.url || ""}
+
+[입금 계좌 안내]
+은행명: ${config.bank || ""}
+예금주: ${config.holder || ""}
+계좌번호: ${config.account || ""}`;
+  }
+
+  // ---------- Monthly bill UI ----------
+  function prepareMonthList() {
+    const ym = document.getElementById("bill-yearmonth").value;
+    if (!ym) return alert("연도·월을 선택해주세요");
+    const [yr, mo] = ym.split("-").map(Number);
+    const scope = document.getElementById("bill-scope").value;
+    let target;
+    if (scope.startsWith("student:")) {
+      const sid = scope.slice("student:".length);
+      const one = students.find(s => s.id === sid);
+      target = one ? [one] : [];
+    }
+    else if (scope === "month") target = students.filter(s => s.active && s.cycle === "월");
+    else if (scope === "today") target = todaysBillingStudents();
+    else target = students.filter(s => s.active);
+
+    const list = document.getElementById("month-bill-list");
+    document.getElementById("month-bill-output").innerHTML = "";
+    if (target.length === 0) { list.innerHTML = '<div class="empty">대상 학생이 없어요</div>'; return; }
+
+    list.innerHTML = '<div style="font-size:12px; color:#1f4ea3; margin-bottom:6px;">학생별 n차 미리보기 확인 후 [메시지 생성] · <b style="color:#b34a2a;">이월강의 횟수는 카톡 붙여넣기 후 직접 입력</b>:</div>' +
+      target.map(s => {
+        const cls = getClasses(s);
+        const allDates = [];
+        cls.forEach(c => {
+          classDatesInMonth(yr, mo - 1, c.day).forEach(d => allDates.push(d));
+        });
+        allDates.sort((a,b) => a-b);
+        const classSummary = cls.map(c => `${dayName(c.day)} ${c.time || ""}`).join(" / ") || "정규수업 미설정";
+        const yN = s.startDate ? Math.max(1, monthsBetween(s.startDate, yr, mo - 1)) : 1;
+        const progNm = s.programName || config.program || "";
+        let progPreview = "";
+        if (progNm && s.programStartDate) {
+          const p = Math.max(1, monthsBetween(s.programStartDate, yr, mo - 1));
+          progPreview = ` · <b>${progNm} ${p}차</b>`;
+        } else if (progNm) {
+          progPreview = ` · ${progNm}`;
+        }
+        return `<div class="month-row" data-id="${s.id}">
+          <div class="name">${s.name}</div>
+          <div class="meta">월 ${s.monthlyCount || "?"}회 · ${fmt(s.amount)}원 · 주 ${cls.length}회 (${classSummary})</div>
+          <div class="meta" style="color:#1f4ea3;"><b>${yr}년 ${yN}차</b>${progPreview}</div>
+          <div class="meta" style="color:#888;">${mo}월 수업: ${allDates.join(",")}일 (총 ${allDates.length}회)</div>
+          <button class="btn small" onclick="genMonthForOne('${s.id}', ${yr}, ${mo - 1})">메시지</button>
+        </div>`;
+      }).join("") +
+      `<div style="margin-top:8px;"><button class="btn" onclick="genMonthForAll(${yr}, ${mo - 1})">전부 한번에 생성</button></div>`;
+  }
+  function genMonthForOne(id, year, monthIdx) {
+    const s = students.find(x => x.id === id); if (!s) return;
+    const msg = buildMonthlyMessage(s, year, monthIdx);
+    appendMsgBox(s.name, msg, true, s.id, s.amount || 0);
+  }
+  function genMonthForAll(year, monthIdx) {
+    document.getElementById("month-bill-output").innerHTML = "";
+    document.querySelectorAll("#month-bill-list .month-row").forEach(row => {
+      const id = row.dataset.id;
+      const s = students.find(x => x.id === id); if (!s) return;
+      const msg = buildMonthlyMessage(s, year, monthIdx);
+      appendMsgBox(s.name, msg, false, s.id, s.amount || 0);
+    });
+  }
+  function appendMsgBox(name, msg, clear, sid, amount) {
+    const out = document.getElementById("month-bill-output");
+    if (clear) out.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "msg-box";
+    div.dataset.msg = msg;
+    if (sid) div.dataset.sid = sid;
+    if (amount !== undefined) div.dataset.amount = amount;
+    div.innerHTML = `<div class="msg-box-header"><b>${name}</b><button class="btn small secondary" onclick="copyMsgBox(this)">복사</button></div>${msg}`;
+    out.appendChild(div);
+  }
+  function copyMsgBox(btn) {
+    const box = btn.closest(".msg-box");
+    const text = box.dataset.msg;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "복사됨!";
+      setTimeout(() => { btn.textContent = "복사"; }, 1500);
+      // 5일 발급 카운트다운 자동 기록
+      if (box.dataset.sid) {
+        recordBillingCopy(box.dataset.sid, +box.dataset.amount || 0);
+      }
+    }).catch(() => prompt("직접 선택·복사:", text));
+  }
+  function copyAllTodayMsgs() {
+    const boxes = document.querySelectorAll("#today-billing .msg-box");
+    if (boxes.length === 0) return;
+    let text = "";
+    boxes.forEach((box, i) => {
+      const row = box.closest(".billing-row");
+      const name = row.querySelector(".name") ? row.querySelector(".name").textContent.trim().split(" ")[0] : "";
+      text += `■■ ${name} ■■\n${box.dataset.msg}\n\n${"=".repeat(40)}\n\n`;
+    });
+    navigator.clipboard.writeText(text).then(() => {
+      alert(boxes.length + "명 메시지 복사 완료. 카톡에서 학생별로 잘라 붙이세요.");
+      // 일괄 복사 시 모든 학생에 대해 5일 카운트다운 기록
+      boxes.forEach(box => {
+        if (box.dataset.sid) {
+          recordBillingCopy(box.dataset.sid, +box.dataset.amount || 0);
+        }
+      });
+    }).catch(() => prompt("직접 복사:", text));
+  }
+
+  // ---------- Monthly schedule (Zoom prep) ----------
+  function buildScheduleLabels(student, year, monthIdx) {
+    const cls = getClasses(student);
+    if (cls.length === 0) return [];
+    const labels = [];
+    cls.forEach(c => {
+      const dates = classDatesInMonth(year, monthIdx, c.day);
+      let startHHMM = "";
+      if (c.time) {
+        const m = c.time.match(/(\d{1,2}):(\d{2})/);
+        if (m) startHHMM = m[1].padStart(2,"0") + ":" + m[2];
+      }
+      dates.forEach(d => {
+        labels.push({
+          day: d,
+          label: `${student.name} ${monthIdx+1}/${d}${startHHMM ? " " + startHHMM : ""}`,
+          iso: `${year}-${String(monthIdx+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`
+        });
+      });
+    });
+    // 날짜 순 정렬
+    labels.sort((a,b) => a.iso.localeCompare(b.iso));
+    return labels;
+  }
+  function renderSchedule() {
+    const ym = document.getElementById("sched-yearmonth").value;
+    if (!ym) return alert("연도·월을 선택해주세요");
+    const [yr, mo] = ym.split("-").map(Number);
+    const out = document.getElementById("schedule-output");
+    const active = students.filter(s => s.active && getClasses(s).length > 0);
+    if (active.length === 0) { out.innerHTML = '<div class="empty">정규 수업일이 등록된 활성 학생이 없어요</div>'; return; }
+    let html = "";
+    active.forEach(s => {
+      const labels = buildScheduleLabels(s, yr, mo - 1);
+      if (labels.length === 0) return;
+      const cls = getClasses(s);
+      const classSummary = cls.map(c => `${dayName(c.day)} ${c.time || ""}`).join(" / ");
+      html += `<div style="background:#fff; border:1px solid #e0d8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>${s.name}</b> <span style="font-size:11px; color:#5a3aa3;">주 ${cls.length}회 · ${classSummary}</span>
+          <button class="btn small secondary" onclick="copyOneSchedule('${s.id}', ${yr}, ${mo - 1})">이 학생 라벨 복사</button>
+        </div>
+        <div style="margin-top:6px; font-size:12px; color:#444;">
+          ${labels.map(l => `<div style="font-family:ui-monospace,monospace; padding:3px 0;">${l.label}</div>`).join("")}
+        </div>
+        <div style="font-size:10px; color:#888; margin-top:4px;">총 ${labels.length}회 · ${s.curriculum ? "커리: " + s.curriculum.slice(0,40) + (s.curriculum.length>40?"…":"") : ""}</div>
+      </div>`;
+    });
+    out.innerHTML = html || '<div class="empty">정규 수업일이 등록된 활성 학생이 없어요</div>';
+  }
+  function copyOneSchedule(id, year, monthIdx) {
+    const s = students.find(x => x.id === id); if (!s) return;
+    const labels = buildScheduleLabels(s, year, monthIdx);
+    const text = labels.map(l => l.label).join("\n");
+    navigator.clipboard.writeText(text).then(() => alert(s.name + " 라벨 " + labels.length + "개 복사 완료")).catch(() => prompt("직접 복사:", text));
+  }
+  function copyAllSchedule() {
+    const ym = document.getElementById("sched-yearmonth").value;
+    if (!ym) return alert("연도·월을 선택해주세요");
+    const [yr, mo] = ym.split("-").map(Number);
+    let text = `[${yr}.${String(mo).padStart(2,"0")} 수업 일정 — Zoom 생성용]\n\n`;
+    students.filter(s => s.active && getClasses(s).length > 0).forEach(s => {
+      const labels = buildScheduleLabels(s, yr, mo - 1);
+      if (labels.length === 0) return;
+      const cls = getClasses(s);
+      const summary = cls.map(c => `${dayName(c.day)} ${c.time || ""}`).join(" / ");
+      text += `■ ${s.name} (${summary})\n`;
+      labels.forEach(l => text += `  ${l.label}\n`);
+      text += "\n";
+    });
+    navigator.clipboard.writeText(text).then(() => alert("전체 일정 복사 완료. Zoom 또는 캘린더에 붙여넣기.")).catch(() => prompt("직접 복사:", text));
+  }
+
+  // ---------- Bulk receipt ----------
+  function copyBulkText() {
+    const now = new Date();
+    const monthUn = txs.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && t.receipt === "0";
+    });
+    if (monthUn.length === 0) return alert("이번 달 미발급 건이 없어요");
+    const grouped = {};
+    monthUn.forEach(t => { (grouped[t.studentId] = grouped[t.studentId] || []).push(t); });
+    let text = `[${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,"0")} 현금영수증 일괄 발급용]\n\n`;
+    Object.keys(grouped).forEach(sid => {
+      const s = students.find(x => x.id === sid) || { name: "(삭제)", phone: "" };
+      const list = grouped[sid];
+      const sum = list.reduce((a, t) => a + t.amount, 0);
+      text += `■ ${s.name}\n  전화번호: ${s.phone || '미입력'}\n  합계: ${fmt(sum)}원 (${list.length}건)\n`;
+      list.forEach(t => { text += `   - ${t.date}: ${fmt(t.amount)}원\n`; });
+      text += "\n";
+    });
+    navigator.clipboard.writeText(text).then(() => alert("복사 완료. 홈택스 작업창 옆에 띄우고 입력하세요.")).catch(() => prompt("직접 복사:", text));
+  }
+  function markAllIssued() {
+    if (!confirm("이번 달 미발급 건을 모두 '발급함'으로 표시할까요? 홈택스에서 실제 발급한 후에 누르세요.")) return;
+    const now = new Date();
+    let n = 0;
+    txs.forEach(t => {
+      const d = new Date(t.date);
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && t.receipt === "0") {
+        t.receipt = "1"; n++;
+      }
+    });
+    save(); render();
+    alert(n + "건 처리 완료");
+  }
+
+  // ---------- Receipt Deadline (5-day countdown) ----------
+  function renderReceiptDeadline() {
+    const card = document.getElementById("receipt-deadline-card");
+    const list = document.getElementById("receipt-deadline-list");
+    if (!card || !list) return;
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const pending = billingCopies.filter(b => !b.issued).sort((a,b) => a.copiedAt.localeCompare(b.copiedAt));
+
+    if (pending.length === 0) {
+      card.style.display = "none";
+      list.innerHTML = "";
+      return;
+    }
+    card.style.display = "block";
+
+    list.innerHTML = pending.map(b => {
+      const s = students.find(x => x.id === b.studentId) || {name:"(삭제됨)", phone:""};
+      const copied = new Date(b.copiedAt);
+      copied.setHours(0,0,0,0);
+      const daysSince = Math.round((today - copied) / 86400000);
+      const daysLeft = 5 - daysSince;
+      const deadline = new Date(copied.getFullYear(), copied.getMonth(), copied.getDate() + 5);
+      const deadlineStr = `${deadline.getFullYear()}-${String(deadline.getMonth()+1).padStart(2,"0")}-${String(deadline.getDate()).padStart(2,"0")}`;
+
+      let badgeColor, badgeText, rowBg;
+      if (daysLeft < 0) {
+        badgeColor = "#a13a1a"; rowBg = "#ffd6c8";
+        badgeText = `⚠️ 기한 ${-daysLeft}일 초과 — 가산세 위험`;
+      } else if (daysLeft === 0) {
+        badgeColor = "#a13a1a"; rowBg = "#ffe0d0";
+        badgeText = `🔥 오늘이 마감일`;
+      } else if (daysLeft <= 1) {
+        badgeColor = "#a13a1a"; rowBg = "#fff0e6";
+        badgeText = `🔥 ${daysLeft}일 남음`;
+      } else if (daysLeft <= 2) {
+        badgeColor = "#b34a2a"; rowBg = "#fff5ec";
+        badgeText = `⏳ ${daysLeft}일 남음`;
+      } else {
+        badgeColor = "#5a8a3a"; rowBg = "#fff";
+        badgeText = `${daysLeft}일 남음`;
+      }
+
+      return `<div style="background:${rowBg}; border:1px solid #f5a07a; border-radius:8px; padding:10px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <div>
+            <b style="font-size:14px;">${s.name}</b>
+            <span style="margin-left:6px;">${fmt(b.amount)}원</span>
+            <span style="color:${badgeColor}; font-weight:700; margin-left:8px;">${badgeText}</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:#5a3a2a; margin-top:4px;">
+          📞 ${s.phone || '<span style="color:#a13a1a;">전화번호 없음 — 자진발급 010-000-1234 사용</span>'}
+          · 거래일 <b>${b.copiedAt}</b>
+          · 발급기한 <b>${deadlineStr}</b>
+        </div>
+        <div style="margin-top:6px;">
+          <button class="btn small secondary" onclick="copyHomeTaxOne('${b.id}')">📋 홈택스 텍스트 복사</button>
+          <button class="btn small" onclick="markCopyIssued('${b.id}')">✓ 발급 완료</button>
+          <button class="btn small danger" onclick="delCopy('${b.id}')">제거</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // ---------- Render ----------
+  function render() {
+    const now = new Date();
+    document.getElementById("today-date").textContent = "오늘 " +
+      now.getFullYear() + "." + String(now.getMonth()+1).padStart(2,"0") + "." +
+      String(now.getDate()).padStart(2,"0") + " (" + dayName(now.getDay()) + ")";
+
+    renderReceiptDeadline();
+
+    // Stats
+    const mTxs = txs.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    const monthSum = mTxs.reduce((s, t) => s + t.amount, 0);
+    document.getElementById("stat-month").textContent = fmt(monthSum) + "원";
+    document.getElementById("stat-vat").textContent = fmt(Math.round(monthSum * 0.1)) + "원";
+    document.getElementById("stat-unissued").textContent = mTxs.filter(t => t.receipt === "0").length + "건";
+    document.getElementById("stat-today").textContent = todayBill.length + "명";
+
+    // Today's billing — auto-generate full message ready for copy
+    const tb = document.getElementById("today-billing");
+    if (todayBill.length === 0) {
+      tb.innerHTML = '<div class="empty">오늘 청구 일정에 잡힌 학생 없음</div>';
+    } else {
+      const yr = now.getFullYear();
+      const moIdx = now.getMonth();
+      tb.innerHTML = todayBill.map(s => {
+        const yN = s.startDate ? Math.max(1, monthsBetween(s.startDate, yr, moIdx)) : 1;
+        const progNm = s.programName || config.program || "";
+        let progLabel = "";
+        if (progNm && s.programStartDate) {
+          const p = Math.max(1, monthsBetween(s.programStartDate, yr, moIdx));
+          progLabel = ` · <b>${progNm} ${p}차</b>`;
+        } else if (progNm) {
+          progLabel = ` · ${progNm}`;
+        }
+        const msg = buildMonthlyMessage(s, yr, moIdx);
+        const msgEsc = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<div class="billing-row">
+          <div class="name">${s.name} <span class="pill today">${cycleLabel(s)}</span> ${s.cycle==="월" ? '<span class="pill month">월정기</span>' : ''}</div>
+          <div class="meta">${s.service || ""} · 월 ${s.monthlyCount || "?"}회 · ${fmt(s.amount)}원 · ${s.phone || "전화번호 미입력"}</div>
+          <div class="meta" style="color:#1f4ea3; margin-top:4px;"><b>${yr}년 ${yN}차</b>${progLabel}</div>
+          <div class="msg-box" style="margin-top:8px;" data-msg="${msg.replace(/"/g,'&quot;')}" data-sid="${s.id}" data-amount="${s.amount || 0}">
+            <div class="msg-box-header">
+              <b>📋 청구 메시지 (이월강의 횟수만 직접 기재)</b>
+              <button class="btn small secondary" onclick="copyMsgBox(this)">복사</button>
+            </div>${msgEsc}
+          </div>
+        </div>`;
+      }).join("") +
+      (todayBill.length > 1 ? `<div style="margin-top:8px;"><button class="btn" onclick="copyAllTodayMsgs()">📦 오늘 ${todayBill.length}명 메시지 한번에 복사</button></div>` : '');
+    }
+
+    // Student dropdown (transaction)
+    const sel = document.getElementById("tx-student");
+    sel.innerHTML = '<option value="">— 학생 선택 —</option>' +
+      students.filter(s => s.active).map(s => `<option value="${s.id}">${s.name} (${fmt(s.amount || s.rate)}원/${s.cycle})</option>`).join("");
+
+    // 청구 메시지용 개별 학생 dropdown 채우기
+    const billStudentGroup = document.getElementById("bill-scope-students");
+    if (billStudentGroup) {
+      const prevValue = document.getElementById("bill-scope").value;
+      const activeStudents = students.filter(s => s.active);
+      if (activeStudents.length === 0) {
+        billStudentGroup.innerHTML = '<option value="" disabled>활성 학생 없음</option>';
+      } else {
+        billStudentGroup.innerHTML = activeStudents.map(s =>
+          `<option value="student:${s.id}">${s.name} (월 ${s.monthlyCount || "?"}회 · ${fmt(s.amount)}원)</option>`
+        ).join("");
+      }
+      // 이전 선택 복원
+      if (prevValue) document.getElementById("bill-scope").value = prevValue;
+    }
+
+    // Student list
+    const sl = document.getElementById("student-list");
+    if (students.length === 0) {
+      sl.innerHTML = '<div class="empty">학생을 추가해주세요</div>';
+    } else {
+      sl.innerHTML = '<table><tr><th>이름</th><th>서비스</th><th>전화</th><th>월 횟수·금액</th><th>정규 수업</th><th>청구</th><th>상태</th><th></th></tr>' +
+        students.map(s => {
+          const cls = getClasses(s);
+          const scheduleHtml = cls.length === 0
+            ? '<span style="color:#bbb;">미설정</span>'
+            : cls.map(c => `${dayName(c.day)} ${c.time || ""}`).join("<br>");
+          return `
+          <tr>
+            <td><b>${s.name}</b><div style="font-size:10px;color:#888;">${s.memo||""}</div></td>
+            <td>${s.service || "-"}</td>
+            <td style="font-family:ui-monospace,monospace; font-size:11px;">${s.phone || '<span style="color:#bbb;">미입력</span>'}</td>
+            <td>${s.monthlyCount ? `월 ${s.monthlyCount}회<br><b>${fmt(s.amount)}원</b>` : '-'}</td>
+            <td style="font-size:11px;">${cls.length > 0 ? `<b>주 ${cls.length}회</b><br>` : ''}${scheduleHtml}</td>
+            <td style="font-size:11px;">${cycleLabel(s)}</td>
+            <td>${s.active ? '<span class="pill ok">활성</span>' : '<span class="pill no">휴식</span>'}</td>
+            <td>
+              <button class="btn small secondary" onclick="editStudent('${s.id}')">수정</button>
+              <button class="btn small secondary" onclick="toggleStudent('${s.id}')">${s.active ? '휴식' : '활성'}</button>
+              <button class="btn small danger" onclick="delStudent('${s.id}')">삭제</button>
+            </td>
+          </tr>`;
+        }).join("") + "</table>";
+    }
+
+    // Transactions
+    const filtered = txs.filter(t => inFilter(t.date)).sort((a, b) => b.date.localeCompare(a.date));
+    const tt = document.getElementById("tx-table");
+    if (filtered.length === 0) {
+      tt.innerHTML = '<div class="empty">기록이 없습니다</div>';
+    } else {
+      const total = filtered.reduce((s, t) => s + t.amount, 0);
+      tt.innerHTML = `<div style="font-size:12px; color:#666; margin-bottom:6px;">합계: <b>${fmt(total)}원</b> · ${filtered.length}건</div>
+        <table><tr><th>날짜</th><th>학생</th><th>금액</th><th>현영</th><th></th></tr>
+          ${filtered.map(t => {
+            const s = students.find(x => x.id === t.studentId);
+            const name = s ? s.name : "(삭제)";
+            let receipt;
+            if (t.receipt === "1") receipt = '<span class="pill ok">발급</span>';
+            else if (t.receipt === "card") receipt = '<span class="pill ok">카드</span>';
+            else receipt = '<span class="pill no">미발급</span>';
+            return `<tr><td>${t.date}</td><td>${name}</td><td><b>${fmt(t.amount)}원</b></td><td>${receipt}</td>
+              <td>${t.receipt === "0" ? `<button class="btn small secondary" onclick="markIssued('${t.id}')">발급함</button>` : ""}
+                  <button class="btn small danger" onclick="delTx('${t.id}')">삭제</button></td></tr>`;
+          }).join("")}
+        </table>`;
+    }
+
+    // Bulk receipt list
+    const monthUn = mTxs.filter(t => t.receipt === "0");
+    const bulkBox = document.getElementById("bulk-list");
+    if (monthUn.length === 0) {
+      bulkBox.innerHTML = '<div class="empty">이번 달 미발급 건 없음</div>';
+    } else {
+      const grouped = {};
+      monthUn.forEach(t => { (grouped[t.studentId] = grouped[t.studentId] || []).push(t); });
+      const rows = Object.keys(grouped).map(sid => {
+        const s = students.find(x => x.id === sid) || { name: "(삭제)", phone: "" };
+        const list = grouped[sid];
+        const sum = list.reduce((a, t) => a + t.amount, 0);
+        const dates = list.map(t => t.date.slice(5)).join(", ");
+        return `<tr><td><b>${s.name}</b></td>
+          <td style="font-family:ui-monospace,monospace;">${s.phone || '<span style="color:#b34a2a;">전화번호 없음</span>'}</td>
+          <td><b>${fmt(sum)}원</b></td><td>${list.length}건</td>
+          <td style="color:#888; font-size:11px;">${dates}</td></tr>`;
+      }).join("");
+      const totalSum = monthUn.reduce((a, t) => a + t.amount, 0);
+      bulkBox.innerHTML = `<div style="font-size:12px; color:#666; margin-bottom:6px;">합계: <b>${fmt(totalSum)}원</b> · ${monthUn.length}건 / ${Object.keys(grouped).length}명</div>
+        <table><tr><th>학생</th><th>전화번호</th><th>합계</th><th>건수</th><th>거래일</th></tr>${rows}</table>`;
+    }
+  }
+
+  // ---------- CSV / Backup ----------
+  function exportCSV() {
+    const rows = [["날짜","학생","전화번호","서비스","금액","현금영수증"]];
+    txs.forEach(t => {
+      const s = students.find(x => x.id === t.studentId);
+      const r = t.receipt === "1" ? "발급" : t.receipt === "card" ? "카드" : "미발급";
+      rows.push([t.date, s ? s.name : "(삭제)", s ? (s.phone || "") : "", s ? (s.service || "") : "", t.amount, r]);
+    });
+    const csv = "﻿" + rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `tutor-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function exportData() {
+    const data = JSON.stringify({ students, txs, config, billingCopies, exportedAt: new Date().toISOString() }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `tutor-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function importData(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const d = JSON.parse(e.target.result);
+        if (!confirm("기존 데이터를 덮어쓸까요?")) return;
+        students = d.students || []; txs = d.txs || [];
+        billingCopies = d.billingCopies || [];
+        if (d.config) { config = d.config; localStorage.setItem(KEY_C, JSON.stringify(config)); }
+        save(); saveBC(); location.reload();
+      } catch (err) { alert("파일 오류: " + err.message); }
+    };
+    reader.readAsText(file);
+  }
+
+
+  render();
+  // 클라우드 인증 초기화 (로그인 상태이면 자동으로 pull)
+  initAuth();
+</script>
+
+<!-- Service Worker 등록 (오프라인 지원) -->
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(err => {
+        console.warn("SW registration failed:", err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
