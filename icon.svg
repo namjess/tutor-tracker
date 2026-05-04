@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1a1a1a"/>
+  <rect x="64" y="64" width="384" height="384" rx="64" fill="none" stroke="#d8c89a" stroke-width="20"/>
+  <text x="256" y="335" font-family="-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-size="240" font-weight="900" text-anchor="middle" fill="#d8c89a">과</text>
+</svg>

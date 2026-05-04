@@ -1,0 +1,20 @@
+{
+  "name": "과외 트래커",
+  "short_name": "과외",
+  "description": "학생 명단·매출·청구 메시지·현금영수증 발급 기한 관리",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f5",
+  "theme_color": "#1a1a1a",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
